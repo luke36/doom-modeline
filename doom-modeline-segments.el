@@ -1108,7 +1108,7 @@ block selection."
              (or defining-kbd-macro executing-kbd-macro))
     (let ((sep (propertize " " 'face 'doom-modeline-panel))
           (vsep (propertize " " 'face
-                            '(:inherit (doom-modeline-panel variable-pitch))))
+                            '(:inherit (doom-modeline-panel))))
           (macro-name (if (bound-and-true-p evil-this-macro)
                           (format " @%s "
                                   (char-to-string evil-this-macro))
@@ -1120,7 +1120,7 @@ block selection."
          (concat
           (doom-modeline-icon 'mdicon "nf-md-record" "●"
                               macro-name
-                              :face '(:inherit (doom-modeline-urgent doom-modeline-panel))
+                              :face '(:inherit (doom-modeline-panel))
                               :v-adjust 0.15)
           vsep
           (doom-modeline-icon 'mdicon "nf-md-menu_right" "▶" ">"
@@ -1248,10 +1248,10 @@ The number of matches contains substitutions and highlightings."
               (if (doom-modeline-icon-displayable-p)
                   (doom-modeline-icon 'faicon "nf-fa-i_cursor" "" "" :face face)
                 (propertize "I"
-                            'face `(:inherit ,face :height 1.4 :weight normal)
-                            'display '(raise -0.1)))
+                            'face `(:inherit ,face :height 1.0 :weight normal)
+                            'display '(raise -0.0)))
               (propertize " "
-                          'face `(:inherit (variable-pitch ,face)))
+                          'face `(:inherit (,face)))
               (propertize (format "%d " count)
                           'face face)))))
 
