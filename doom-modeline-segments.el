@@ -61,6 +61,9 @@
 (defvar display-time-string)
 (defvar edebug-execution-mode)
 (defvar eglot--managed-mode)
+(defvar eglot-menu)
+(defvar eglot-menu-string)
+(defvar eglot-server-menu)
 (defvar erc-modified-channels-alist)
 (defvar evil-ex-active-highlights-alist)
 (defvar evil-ex-argument)
@@ -139,17 +142,11 @@
 (declare-function edebug-help "edebug")
 (declare-function edebug-next-mode "edebug")
 (declare-function edebug-stop "edebug")
-(declare-function eglot "ext:eglot")
-(declare-function eglot--major-modes "ext:eglot" t t)
-(declare-function eglot--project-nickname "ext:eglot" t t)
-(declare-function eglot-clear-status "ext:eglot")
-(declare-function eglot-current-server "ext:eglot")
-(declare-function eglot-events-buffer "ext:eglot")
-(declare-function eglot-forget-pending-continuations "ext:eglot")
-(declare-function eglot-managed-p "ext:glot")
-(declare-function eglot-reconnect "ext:eglot")
-(declare-function eglot-shutdown "ext:eglot")
-(declare-function eglot-stderr-buffer "ext:eglot")
+(declare-function eglot--major-modes "eglot")
+(declare-function eglot--server-info "eglot" t t)
+(declare-function eglot-current-server "eglot")
+(declare-function eglot-managed-p "eglot")
+(declare-function eglot-project-nickname "eglot" t t)
 (declare-function erc-switch-to-buffer "erc")
 (declare-function erc-track-switch-buffer "erc-track")
 (declare-function evil-delimited-arguments "ext:evil-common")
@@ -171,18 +168,18 @@
 (declare-function flycheck-list-errors "ext:flycheck")
 (declare-function flycheck-next-error "ext:flycheck")
 (declare-function flycheck-previous-error "ext:flycheck")
-(declare-function flymake--diag-type "ext:flymake" t t)
-(declare-function flymake--handle-report "ext:flymake")
-(declare-function flymake--lookup-type-property "ext:flymake")
-(declare-function flymake--state-diags "ext:flymake" t t)
-(declare-function flymake-disabled-backends "ext:flymake")
-(declare-function flymake-goto-next-error "ext:flymake")
-(declare-function flymake-goto-prev-error "ext:flymake")
-(declare-function flymake-reporting-backends "ext:flymake")
-(declare-function flymake-running-backends "ext:flymake")
-(declare-function flymake-show-buffer-diagnostics "ext:flymake")
-(declare-function flymake-show-buffer-diagnostics "ext:flymake")
-(declare-function flymake-start "ext:flymake")
+(declare-function flymake--diag-type "flymake" t t)
+(declare-function flymake--handle-report "flymake")
+(declare-function flymake--lookup-type-property "flymake")
+(declare-function flymake--state-diags "flymake" t t)
+(declare-function flymake-disabled-backends "flymake")
+(declare-function flymake-goto-next-error "flymake")
+(declare-function flymake-goto-prev-error "flymake")
+(declare-function flymake-reporting-backends "flymake")
+(declare-function flymake-running-backends "flymake")
+(declare-function flymake-show-buffer-diagnostics "flymake")
+(declare-function flymake-show-buffer-diagnostics "flymake")
+(declare-function flymake-start "flymake")
 (declare-function follow-all-followers "follow")
 (declare-function gnus-demon-add-handler "gnus-demon")
 (declare-function grip--preview-url "ext:grip-mode")
@@ -194,8 +191,9 @@
 (declare-function iedit-find-current-occurrence-overlay "ext:iedit-lib")
 (declare-function iedit-prev-occurrence "ext:iedit-lib")
 (declare-function image-get-display-property "image-mode")
-(declare-function jsonrpc--request-continuations "ext:jsonrpc" t t)
-(declare-function jsonrpc-last-error "ext:jsonrpc" t t)
+(declare-function jsonrpc--request-continuations "jsonrpc" t t)
+(declare-function jsonrpc-last-error "jsonrpc" t t)
+(declare-function jsonrpc-name "jsonrpc" t t)
 (declare-function kele-current-context-name "ext:kele")
 (declare-function kele-current-namespace "ext:kele")
 (declare-function lsp--workspace-print "ext:lsp-mode")
@@ -206,13 +204,19 @@
 (declare-function lsp-workspaces "ext:lsp-mode")
 (declare-function lv-message "ext:lv")
 (declare-function mc/num-cursors "ext:multiple-cursors-core")
+(declare-function meow--current-state "ext:meow")
+(declare-function meow-beacon-mode-p "ext:meow")
+(declare-function meow-insert-mode-p "ext:meow")
+(declare-function meow-keypad-mode-p "ext:meow")
+(declare-function meow-motion-mode-p "ext:meow")
+(declare-function meow-normal-mode-p "ext:meow")
 (declare-function minions--prominent-modes "ext:minions")
 (declare-function mlscroll-mode-line "ext:mlscroll")
 (declare-function mu4e--modeline-string "ext:mu4e-modeline")
 (declare-function mu4e-alert-default-mode-line-formatter "ext:mu4e-alert")
 (declare-function mu4e-alert-enable-mode-line-display "ext:mu4e-alert")
 (declare-function nyan-create "ext:nyan-mode")
-(declare-function org-edit-src-save "ext:org-src")
+(declare-function org-edit-src-save "org-src")
 (declare-function parrot-create "ext:parrot")
 (declare-function pdf-cache-number-of-pages "ext:pdf-cache" t t)
 (declare-function persp-add-buffer "ext:persp-mode")
@@ -242,8 +246,6 @@
 (declare-function tracking-next-buffer "ext:tracking")
 (declare-function tracking-previous-buffer "ext:tracking")
 (declare-function tracking-shorten "ext:tracking")
-(declare-function undo-tree-redo-1 "ext:undo-tree")
-(declare-function undo-tree-undo-1 "ext:undo-tree")
 (declare-function warning-numeric-level "warnings")
 (declare-function window-numbering-clear-mode-line "ext:window-numbering")
 (declare-function window-numbering-get-number-string "ext:window-numbering")
@@ -296,7 +298,12 @@ Uses `nerd-icons-mdicon' to fetch the icon."
         (when doom-modeline-buffer-state-icon
           (ignore-errors
             (concat
-             (cond (buffer-read-only
+             (cond ((not (or (and (buffer-file-name) (file-remote-p buffer-file-name))
+                             (verify-visited-file-modtime (current-buffer))))
+                    (doom-modeline-buffer-file-state-icon
+                     "nf-md-reload_alert" "⟳" "%1*"
+                     'doom-modeline-warning))
+                   (buffer-read-only
                     (doom-modeline-buffer-file-state-icon
                      "nf-md-lock" "🔒" "%1*"
                      'doom-modeline-warning))
@@ -684,9 +691,10 @@ Uses `nerd-icons-octicon' to fetch the icon."
                              ((memq state '(removed conflict unregistered))
                               (doom-modeline-icon 'octicon "nf-oct-alert" "⚠" "!" :face 'doom-modeline-urgent))
                              (t (doom-modeline-vcs-icon "nf-dev-git_branch" "" "@" 'doom-modeline-info))))
-                 (str (if vc-display-status
-                          (substring vc-mode (+ (if (eq backend 'Hg) 2 3) 2))
-                        ""))
+                 (str (or (and vc-display-status
+                               (functionp doom-modeline-vcs-display-function)
+                               (funcall doom-modeline-vcs-display-function))
+                          ""))
                  (face (cond ((eq state 'needs-update)
                               '(doom-modeline-warning bold))
                              ((memq state '(removed conflict unregistered))
@@ -726,6 +734,15 @@ Uses `nerd-icons-octicon' to fetch the icon."
  (lambda (_sym val op _where)
    (when (eq op 'set)
      (setq doom-modeline-vcs-icon val)
+     (dolist (buf (buffer-list))
+       (with-current-buffer buf
+         (doom-modeline-update-vcs))))))
+
+(doom-modeline-add-variable-watcher
+ 'vc-display-status
+ (lambda (_sym val op _where)
+   (when (eq op 'set)
+     (setq vc-display-status val)
      (dolist (buf (buffer-list))
        (with-current-buffer buf
          (doom-modeline-update-vcs))))))
@@ -797,7 +814,7 @@ level."
                                                    (doom-modeline-check-icon "nf-md-alert_circle_outline" "⚠" "!" face)
                                                    vsep
                                                    (doom-modeline-check-text (number-to-string count) face)))
-                                              (doom-modeline-check-icon "nf-md-check_circle_outline" "✔" "" 'doom-modeline-info)))
+                                              (doom-modeline-check-icon "nf-md-check_circle_outline" "✔" "*" 'doom-modeline-info)))
                               ('running     (concat
                                              (doom-modeline-check-icon "nf-md-timer_sand" "⏳" "*" 'doom-modeline-debug)
                                              (when (> count 0)
@@ -933,33 +950,36 @@ level."
                                ((null known) (doom-modeline-check-icon "nf-md-alert_box_outline" "⚠" "!" 'doom-modeline-urgent))
                                (all-disabled (doom-modeline-check-icon "nf-md-alert_box_outline" "⚠" "!" 'doom-modeline-warning))
                                (t (if (> count 0)
-                                      (let ((face (if (> .error 0) 'doom-modeline-urgent 'doom-modeline-warning)))
+                                      (let ((face (cond ((> .error 0) 'doom-modeline-urgent)
+                                                        ((> .warning 0) 'doom-modeline-warning)
+                                                        (t 'doom-modeline-info))))
                                         (concat
                                          (doom-modeline-check-icon "nf-md-alert_circle_outline" "⚠" "!" face)
                                          vsep
                                          (doom-modeline-check-text (number-to-string count) face)))
-                                    (doom-modeline-check-icon "nf-md-check_circle_outline" "✔" "" 'doom-modeline-info)))))
-                          (concat (doom-modeline-check-icon "nf-md-close_circle_outline" "⮾" "!" 'doom-modeline-urgent)
-                                  vsep
-                                  (doom-modeline-check-text (number-to-string .error) 'doom-modeline-urgent)
-                                  vsep
-                                  (doom-modeline-check-icon "nf-md-alert_outline" "⚠" "!" 'doom-modeline-warning)
-                                  vsep
-                                  (doom-modeline-check-text (number-to-string .warning) 'doom-modeline-warning)
-                                  vsep
-                                  (doom-modeline-check-icon "nf-md-information_outline" "🛈" "!" 'doom-modeline-info)
-                                  vsep
-                                  (doom-modeline-check-text (number-to-string .note) 'doom-modeline-info)))))
+                                    (doom-modeline-check-icon "nf-md-check_circle_outline" "✔" "*" 'doom-modeline-info)))))
+                          (concat
+                           (doom-modeline-check-icon "nf-md-close_circle_outline" "⮾" "!" 'doom-modeline-urgent)
+                           vsep
+                           (doom-modeline-check-text (number-to-string .error) 'doom-modeline-urgent)
+                           vsep
+                           (doom-modeline-check-icon "nf-md-alert_outline" "⚠" "!" 'doom-modeline-warning)
+                           vsep
+                           (doom-modeline-check-text (number-to-string .warning) 'doom-modeline-warning)
+                           vsep
+                           (doom-modeline-check-icon "nf-md-information_outline" "🛈" "!" 'doom-modeline-info)
+                           vsep
+                           (doom-modeline-check-text (number-to-string .note) 'doom-modeline-info)))))
               (propertize
                seg
-               'help-echo (concat "Flymake\n"
-                                  (cond
-                                   (some-waiting "Checking...")
-                                   ((null known) "No Checker")
-                                   (all-disabled "All Checkers Disabled")
-                                   (t (format "%d/%d backends running\nerror: %d, warning: %d, note: %d"
-                                              (length running) (length known) .error .warning .note)))
-                                  "\nmouse-1: Display minor mode menu\nmouse-2: Show help for minor mode")
+               'help-echo (concat
+                           "Flymake\n"
+                           (cond (some-waiting "Checking...")
+                                 ((null known) "No Checker")
+                                 (all-disabled "All Checkers Disabled")
+                                 (t (format "%d/%d backends running\nerror: %d, warning: %d, note: %d"
+                                            (length running) (length known) .error .warning .note)))
+                           "\nmouse-1: Display minor mode menu\nmouse-2: Show help for minor mode")
                'mouse-face 'doom-modeline-highlight
                'local-map (let ((map (make-sparse-keymap)))
                             (define-key map [mode-line down-mouse-1]
@@ -1034,9 +1054,9 @@ level."
                                    vsep)
                          (doom-modeline-display-icon s)))))
        (propertize str
-                   'help-echo (get-text-property 1 'help-echo seg)
+                   'help-echo (get-text-property 0 'help-echo seg)
                    'mouse-face 'doom-modeline-highlight
-                   'local-map (get-text-property 1 'local-map seg)))
+                   'local-map (get-text-property 0 'local-map seg)))
      sep)))
 
 
@@ -1132,10 +1152,11 @@ block selection."
 ;; mode-line.
 (defun doom-modeline-fix-anzu-count (positions here)
   "Calulate anzu count via POSITIONS and HERE."
-  (cl-loop for (start . end) in positions
-           collect t into before
+  (cl-loop with i = 0
+           for (start . end) in positions
+           do (cl-incf i)
            when (and (>= here start) (<= here end))
-           return (length before)
+           return i
            finally return 0))
 
 (advice-add #'anzu--where-is-here :override #'doom-modeline-fix-anzu-count)
@@ -1710,7 +1731,7 @@ TEXT is alternative if icon is not available."
       ((evil-visual-state-p) 'doom-modeline-evil-visual-state)
       ((evil-operator-state-p) 'doom-modeline-evil-operator-state)
       ((evil-replace-state-p) 'doom-modeline-evil-replace-state)
-      (t 'doom-modeline-evil-normal-state))
+      (t 'doom-modeline-evil-user-state))
      (evil-state-property evil-state :name t)
      (cond
       ((evil-normal-state-p) "nf-md-alpha_n_circle")
@@ -1720,7 +1741,7 @@ TEXT is alternative if icon is not available."
       ((evil-visual-state-p) "nf-md-alpha_v_circle")
       ((evil-operator-state-p) "nf-md-alpha_o_circle")
       ((evil-replace-state-p) "nf-md-alpha_r_circle")
-      (t "nf-md-alpha_n_circle"))
+      (t "nf-md-alpha_u_circle"))
      (cond
       ((evil-normal-state-p) "🅝")
       ((evil-emacs-state-p) "🅔")
@@ -1729,7 +1750,7 @@ TEXT is alternative if icon is not available."
       ((evil-visual-state-p) "🅥")
       ((evil-operator-state-p) "🅞")
       ((evil-replace-state-p) "🅡")
-      (t "🅝")))))
+      (t "🅤")))))
 
 (defsubst doom-modeline--overwrite ()
   "The current overwrite state which is enabled by command `overwrite-mode'."
@@ -1781,11 +1802,30 @@ TEXT is alternative if icon is not available."
 (defsubst doom-modeline--meow ()
   "The current Meow state. Requires `meow-mode' to be enabled."
   (when (bound-and-true-p meow-mode)
-    (if (doom-modeline--active)
-	    meow--indicator
-	  (propertize (substring-no-properties meow--indicator)
-		          'face
-		          'mode-line-inactive))))
+    (doom-modeline--modal-icon
+     (substring-no-properties meow--indicator)
+     (cond
+      ((meow-normal-mode-p) 'doom-modeline-meow-normal-state)
+      ((meow-insert-mode-p) 'doom-modeline-meow-insert-state)
+      ((meow-beacon-mode-p) 'doom-modeline-meow-beacon-state)
+      ((meow-motion-mode-p) 'doom-modeline-meow-motion-state)
+      ((meow-keypad-mode-p) 'doom-modeline-meow-keypad-state)
+      (t 'doom-modeline-meow-normal-state))
+     (symbol-name (meow--current-state))
+     (cond
+      ((meow-normal-mode-p) "nf-md-alpha_n_circle")
+      ((meow-insert-mode-p) "nf-md-alpha_i_circle")
+      ((meow-beacon-mode-p) "nf-md-alpha_b_circle")
+      ((meow-motion-mode-p) "nf-md-alpha_m_circle")
+      ((meow-keypad-mode-p) "nf-md-alpha_k_circle")
+      (t "nf-md-alpha_n_circle"))
+     (cond
+      ((meow-normal-mode-p) "🅝")
+      ((meow-insert-mode-p) "🅘")
+      ((meow-beacon-mode-p) "🅑")
+      ((meow-motion-mode-p) "🅜")
+      ((meow-keypad-mode-p) "🅚")
+      (t "🅝")))))
 
 (doom-modeline-def-segment modals
   "Displays modal editing states.
@@ -1969,7 +2009,7 @@ mouse-3: Describe current input method")
           (propertize icon
                       'help-echo
                       (if workspaces
-                          (concat "LSP Connected "
+                          (concat "LSP connected "
                                   (string-join
                                    (mapcar (lambda (w)
                                              (format "[%s]\n" (lsp--workspace-print w)))
@@ -2012,50 +2052,30 @@ mouse-1: Reload to start server")
 
 (defvar-local doom-modeline--eglot nil)
 (defun doom-modeline-update-eglot ()
-  "Update `eglot' state."
+  "Update eglot state."
   (setq doom-modeline--eglot
-        (pcase-let* ((server (and (eglot-managed-p) (eglot-current-server)))
-                     (nick (and server (eglot--project-nickname server)))
-                     (pending (and server (doom-modeline--eglot-pending-count server)))
-                     (last-error (and server (jsonrpc-last-error server)))
-                     (face (cond (last-error 'doom-modeline-lsp-error)
-                                 ((and pending (cl-plusp pending)) 'doom-modeline-lsp-warning)
-                                 (nick 'doom-modeline-lsp-success)
-                                 (t 'doom-modeline-lsp-warning)))
-                     (icon (doom-modeline-lsp-icon "EGLOT" face)))
+        (let* ((server (and (eglot-managed-p) (eglot-current-server)))
+               (nick (and server (eglot-project-nickname server)))
+               (pending (and server (doom-modeline--eglot-pending-count server)))
+               (last-error (and server (jsonrpc-last-error server)))
+               (face (cond (last-error 'doom-modeline-lsp-error)
+                           ((and pending (cl-plusp pending)) 'doom-modeline-lsp-warning)
+                           (nick 'doom-modeline-lsp-success)
+                           (t 'doom-modeline-lsp-warning)))
+               (server-info (and server (eglot--server-info server)))
+               (server-name (or (plist-get server-info :name)
+                                (and server (jsonrpc-name server)) ""))
+               (major-modes (or (and server (eglot--major-modes server)) ""))
+               (icon (doom-modeline-lsp-icon eglot-menu-string face)))
           (propertize icon
-                      'help-echo (cond
-                                  (last-error
-                                   (format "EGLOT\nAn error occured: %s
-mouse-3: Clear this status" (plist-get last-error :message)))
-                                  ((and pending (cl-plusp pending))
-                                   (format "EGLOT\n%d outstanding requests" pending))
-                                  (nick (format "EGLOT Connected (%s/%s)
-C-mouse-1: Go to server errors
-mouse-1: Go to server events
-mouse-2: Quit server
-mouse-3: Reconnect to server" nick (eglot--major-modes server)))
-                                  (t "EGLOT Disconnected
-mouse-1: Start server"))
+                      'help-echo (format "Eglot connected [%s]\n%s %s
+mouse-1: Display minor mode menu
+mouse-3: LSP server control menu"
+                                         nick server-name major-modes)
                       'mouse-face 'doom-modeline-highlight
                       'local-map (let ((map (make-sparse-keymap)))
-                                   (cond (last-error
-                                          (define-key map [mode-line mouse-3]
-                                            #'eglot-clear-status))
-                                         ((and pending (cl-plusp pending))
-                                          (define-key map [mode-line mouse-3]
-                                            #'eglot-forget-pending-continuations))
-                                         (nick
-                                          (define-key map [mode-line C-mouse-1]
-                                            #'eglot-stderr-buffer)
-                                          (define-key map [mode-line mouse-1]
-                                            #'eglot-events-buffer)
-                                          (define-key map [mode-line mouse-2]
-                                            #'eglot-shutdown)
-                                          (define-key map [mode-line mouse-3]
-                                            #'eglot-reconnect))
-                                         (t (define-key map [mode-line mouse-1]
-                                              #'eglot)))
+                                   (define-key map [mode-line mouse-1] eglot-menu)
+                                   (define-key map [mode-line mouse-3] eglot-server-menu)
                                    map)))))
 (add-hook 'eglot-managed-mode-hook #'doom-modeline-update-eglot)
 
@@ -2064,8 +2084,8 @@ mouse-1: Start server"))
   "Update tags state."
   (setq doom-modeline--tags
         (propertize
-         (doom-modeline-lsp-icon "TAGS" 'doom-modeline-lsp-success)
-         'help-echo "TAGS: Citre mode
+         (doom-modeline-lsp-icon "Tags" 'doom-modeline-lsp-success)
+         'help-echo "Tags: Citre mode
 mouse-1: Toggle citre mode"
          'mouse-face 'doom-modeline-highlight
          'local-map (make-mode-line-mouse-map 'mouse-1 #'citre-mode))))
@@ -2543,19 +2563,23 @@ mouse-1: Toggle Debug on Quit"
 ;; IRC notifications
 ;;
 
-(defun doom-modeline--shorten-irc (name)
-  "Wrapper for `tracking-shorten' and `erc-track-shorten-function' with NAME.
+(defun doom-modeline-shorten-irc (name)
+  "Shorten IRC buffer `name' according to IRC mode.
 
-One key difference is that when `tracking-shorten' and
-`erc-track-shorten-function' returns nil we will instead return the original
-value of name. This is necessary in cases where the user has stylized the name
-to be an icon and we don't want to remove that so we just return the original."
-  (or (and (boundp 'tracking-shorten)
+Calls the mode specific function to return the shortened
+version of `NAME' if applicable:
+- Circe: `tracking-shorten'
+- ERC: `erc-track-shorten-function'
+- rcirc: `rcirc-shorten-buffer-name'
+
+The specific function will decide how to stylize the buffer name,
+read the individual functions documentation for more."
+  (or (and (fboundp 'tracking-shorten)
            (car (tracking-shorten (list name))))
       (and (boundp 'erc-track-shorten-function)
            (functionp erc-track-shorten-function)
 	       (car (funcall erc-track-shorten-function (list name))))
-      (and (boundp 'rcirc-short-buffer-name)
+      (and (fboundp 'rcirc-short-buffer-name)
            (rcirc-short-buffer-name name))
       name))
 
@@ -2564,7 +2588,7 @@ to be an icon and we don't want to remove that so we just return the original."
   (mapconcat
    (lambda (b)
      (propertize
-      (doom-modeline--shorten-irc (funcall doom-modeline-irc-stylize b))
+      (funcall doom-modeline-irc-stylize b)
       'face '(:inherit (doom-modeline-unread-number doom-modeline-notification))
       'help-echo (format "IRC Notification: %s\nmouse-1: Switch to buffer" b)
       'mouse-face 'doom-modeline-highlight
