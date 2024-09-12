@@ -88,13 +88,11 @@
 (defvar meow--indicator)
 (defvar minions-mode-line-lighter)
 (defvar minions-mode-line-minor-modes-map)
-(defvar mlscroll-minimum-current-width)
 (defvar mlscroll-right-align)
 (defvar mu4e--modeline-item)
 (defvar mu4e-alert-mode-line)
 (defvar mu4e-alert-modeline-formatter)
 (defvar mu4e-modeline-mode)
-(defvar nyan-minimum-window-width)
 (defvar objed--obj-state)
 (defvar objed--object)
 (defvar objed-modeline-setup-func)
@@ -103,9 +101,7 @@
 (defvar phi-search--overlays)
 (defvar phi-search--selection)
 (defvar phi-search-mode-line-format)
-(defvar poke-line-minimum-window-width)
 (defvar rcirc-activity)
-(defvar sml-modeline-len)
 (defvar symbol-overlay-keywords-alist)
 (defvar symbol-overlay-temp-symbol)
 (defvar text-scale-mode-amount)
@@ -1650,7 +1646,8 @@ mouse-1: Display Line and Column Mode Menu")
            ,(string-replace
              "%c" "%C" (car doom-modeline-position-column-format)))))
         (doom-modeline-total-line-number
-         ,(format "/%d" (line-number-at-pos (point-max)))))
+         ,(and doom-modeline-total-line-number
+               (format "/%d" (line-number-at-pos (point-max))))))
        face ,face
        help-echo ,help-echo
        mouse-face ,mouse-face
@@ -1662,21 +1659,16 @@ mouse-1: Display Line and Column Mode Menu")
       ;; Position
       (,visible
        ,(cond
-         ((and (bound-and-true-p nyan-mode)
-               (>= (window-width) nyan-minimum-window-width))
+         ((bound-and-true-p nyan-mode)
           (concat sep (nyan-create) sep))
-         ((and (bound-and-true-p poke-line-mode)
-               (>= (window-width) poke-line-minimum-window-width))
+         ((bound-and-true-p poke-line-mode)
           (concat sep (poke-line-create) sep))
-         ((and (bound-and-true-p mlscroll-mode)
-               (>= (window-width) mlscroll-minimum-current-width))
-          (concat
-           sep
-           (let ((mlscroll-right-align nil))
-             (format-mode-line (mlscroll-mode-line)))
-           sep))
-         ((and (bound-and-true-p sml-modeline-mode)
-               (>= (window-width) sml-modeline-len))
+         ((bound-and-true-p mlscroll-mode)
+          (concat sep
+                  (let ((mlscroll-right-align nil))
+                    (format-mode-line (mlscroll-mode-line)))
+                  sep))
+         ((bound-and-true-p sml-modeline-mode)
           (concat sep (sml-modeline-create) sep))
          (t "")))
 
