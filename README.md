@@ -1,6 +1,6 @@
 # doom-modeline
 
-[![Build Status](https://github.com/seagle0128/doom-modeline/workflows/CI/badge.svg?branch=master)](https://github.com/seagle0128/doom-modeline/actions)
+[![CI](https://github.com/seagle0128/doom-modeline/actions/workflows/ci.yml/badge.svg)](https://github.com/seagle0128/doom-modeline/actions/workflows/ci.yml)
 [![Release Tag](https://img.shields.io/github/tag/seagle0128/doom-modeline.svg?label=Release)](https://github.com/seagle0128/doom-modeline/release)
 [![License](http://img.shields.io/:License-GPL3-blue.svg)](License)
 [![MELPA](https://melpa.org/packages/doom-modeline-badge.svg)](https://melpa.org/#/doom-modeline)
@@ -31,7 +31,7 @@ Emacs](https://github.com/hlissner/doom-emacs) and
 
 The `doom-modeline` was designed for minimalism, and offers:
 
-- A match count panel (for `anzu`, `iedit`, `multiple-cursors`, `symbol-overlay`,
+- A match count panel (for `anzu`, `visual-replace`, `iedit`, `multiple-cursors`, `symbol-overlay`,
   and `evil-search`, etc.)
 - An indicator for recording a macro
 - Current environment version (e.g. `python`, `ruby`, `go`, etc.) in the major-mode
@@ -181,6 +181,13 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; displayed. It can be an integer or a float number. `nil' means no limit."
 (setq doom-modeline-window-width-limit 85)
 
+;; Override attributes of the face used for padding.
+;; If the space character is very thin in the modeline, for example if a
+;; variable pitch font is used there, then segments may appear unusually close.
+;; To use the space character from the `fixed-pitch' font family instead, set
+;; this variable to `(list :family (face-attribute 'fixed-pitch :family))'.
+(setq doom-modeline-spc-face-overrides nil)
+
 ;; How to detect the project root.
 ;; nil means to use `default-directory'.
 ;; The project management packages have some issues on detecting project root.
@@ -304,6 +311,15 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; The function to display the branch name.
 (setq doom-modeline-vcs-display-function #'doom-modeline-vcs-name)
 
+;; Alist mapping VCS states to their corresponding faces.
+;; See `vc-state' for possible values of the state.
+;; For states not explicitly listed, the `doom-modeline-vcs-default' face is used.
+(setq doom-modeline-vcs-state-faces-alist
+      '((needs-update . (doom-modeline-warning bold))
+        (removed . (doom-modeline-urgent bold))
+        (conflict . (doom-modeline-urgent bold))
+        (unregistered . (doom-modeline-urgent bold))))
+
 ;; Whether display the icon of check segment. It respects option `doom-modeline-icon'.
 (setq doom-modeline-check-icon t)
 
@@ -312,6 +328,9 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 
 ;; The maximum number displayed for notifications.
 (setq doom-modeline-number-limit 99)
+
+;; Whether display the project name. Non-nil to display in the mode-line.
+(setq doom-modeline-project-name t)
 
 ;; Whether display the workspace name. Non-nil to display in the mode-line.
 (setq doom-modeline-workspace-name t)
@@ -579,6 +598,10 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 
    Use `(setq mode-line-right-align-edge 'right-fringe)`.
    Please refer to [#672](https://github.com/seagle0128/doom-modeline/issues/672) for more details.
+
+1. How to display match counts in `visual-replace`?
+
+   It respects `visual-replace-display-total`, so you should use `(setq visual-replace-display-total t)` to display.
 
 ## Donate
 
