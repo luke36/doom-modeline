@@ -502,54 +502,54 @@ project directory is important."
 (doom-modeline-def-segment buffer-encoding
   "Displays the eol and the encoding style of the buffer."
   (when doom-modeline-buffer-encoding
-    (let ((sep (doom-modeline-spc))
-          (face (doom-modeline-face))
-          (mouse-face 'doom-modeline-highlight))
-      (concat
-       sep
-
-       ;; eol type
-       (let ((eol (coding-system-eol-type buffer-file-coding-system)))
-         (when (or (eq doom-modeline-buffer-encoding t)
-                   (and (eq doom-modeline-buffer-encoding 'nondefault)
-                        (not (equal eol doom-modeline-default-eol-type))))
-           (propertize
-            (pcase eol
-              (0 "LF ")
-              (1 "CRLF ")
-              (2 "CR ")
-              (_ ""))
-            'face face
-            'mouse-face mouse-face
-            'help-echo (format "End-of-line style: %s\nmouse-1: Cycle"
-                               (pcase eol
-                                 (0 "Unix-style LF")
-                                 (1 "DOS-style CRLF")
-                                 (2 "Mac-style CR")
-                                 (_ "Undecided")))
-            'local-map (let ((map (make-sparse-keymap)))
-                         (define-key map [mode-line mouse-1] 'mode-line-change-eol)
-                         map))))
-
-       ;; coding system
-       (let* ((sys (coding-system-plist buffer-file-coding-system))
-              (cat (plist-get sys :category))
-              (sym (if (memq cat
-                             '(coding-category-undecided coding-category-utf-8))
-                       'utf-8
-                     (plist-get sys :name))))
-         (when (or (eq doom-modeline-buffer-encoding t)
-                   (and (eq doom-modeline-buffer-encoding 'nondefault)
-                        (not (eq cat 'coding-category-undecided))
-                        (not (eq sym doom-modeline-default-coding-system))))
-           (propertize
-            (upcase (symbol-name sym))
-            'face face
-            'mouse-face mouse-face
-            'help-echo 'mode-line-mule-info-help-echo
-            'local-map mode-line-coding-system-map)))
-
-       sep))))
+    (let* ((sep (doom-modeline-spc))
+           (face (doom-modeline-face))
+           (mouse-face 'doom-modeline-highlight)
+           ;; eol type
+           (eol (coding-system-eol-type buffer-file-coding-system))
+           (eol-part (when (or (eq doom-modeline-buffer-encoding t)
+                               (and (eq doom-modeline-buffer-encoding 'nondefault)
+                                    (not (equal eol doom-modeline-default-eol-type))))
+                       (propertize
+                        (pcase eol
+                          (0 "LF")
+                          (1 "CRLF")
+                          (2 "CR")
+                          (_ ""))
+                        'face face
+                        'mouse-face mouse-face
+                        'help-echo (format "End-of-line style: %s\nmouse-1: Cycle"
+                                           (pcase eol
+                                             (0 "Unix-style LF")
+                                             (1 "DOS-style CRLF")
+                                             (2 "Mac-style CR")
+                                             (_ "Undecided")))
+                        'local-map (let ((map (make-sparse-keymap)))
+                                     (define-key map [mode-line mouse-1] 'mode-line-change-eol)
+                                     map))))
+           ;; coding system
+           (sys (coding-system-plist buffer-file-coding-system))
+           (cat (plist-get sys :category))
+           (sym (if (memq cat
+                          '(coding-category-undecided coding-category-utf-8))
+                    'utf-8
+                  (plist-get sys :name)))
+           (sys-part (when (or (eq doom-modeline-buffer-encoding t)
+                               (and (eq doom-modeline-buffer-encoding 'nondefault)
+                                    (not (eq cat 'coding-category-undecided))
+                                    (not (eq sym doom-modeline-default-coding-system))))
+                       (propertize
+                        (upcase (symbol-name sym))
+                        'face face
+                        'mouse-face mouse-face
+                        'help-echo 'mode-line-mule-info-help-echo
+                        'local-map mode-line-coding-system-map))))
+      (when (or eol-part sys-part)
+        (concat sep
+                eol-part
+                (when (and eol-part sys-part) sep)
+                sys-part
+                sep)))))
 
 
 ;;
@@ -2320,7 +2320,8 @@ Example:
   "Hooks after fetching GitHub notifications.")
 
 (defun doom-modeline--github-fetch-notifications ()
-  "Fetch GitHub notifications."
+  "Fetch GitHub notifications.
+It requires `async' and `ghub' packages."
   (when (and doom-modeline-github
              (require 'async nil t))
     (async-start
@@ -2331,12 +2332,13 @@ Example:
         (when (require 'ghub nil t)
           (with-timeout (10)
             (ignore-errors
-              (when-let* ((username (ghub--username ghub-default-host))
-                          (token (or (ghub--token ghub-default-host username 'forge t)
-                                     (ghub--token ghub-default-host username 'ghub t))))
+              (when-let* ((host (alist-get 'github ghub-default-host-alist))
+			              (username (ghub--username host))
+                          (token (or (ghub--token host username 'forge t)
+                                     (ghub--token host username 'ghub t))))
                 (ghub-get "/notifications"
                           '((notifications . t))
-                          :host ghub-default-host
+                          :host host
                           :username username
                           :auth token
                           :unpaginate t
@@ -3361,6 +3363,17 @@ Otherwise, it displays the message like `message' would."
                   (apply #'format-message format-string args)))
           (force-mode-line-update)))
     (apply #'message format-string args)))
+
+;;
+;; Speedbar
+;;
+
+(doom-modeline-def-segment speedbar-info
+  (concat
+   (propertize "%l"
+               'face (doom-modeline-face)
+               'mouse-face 'doom-modeline-highlight)
+   (doom-modeline-spc)))
 
 ;;
 ;; Kubernetes
