@@ -87,7 +87,7 @@ Must be set before loading `doom-modeline'."
            (remove-hook 'emacs-lisp-mode-hook #'doom-modeline-add-imenu)))
   :group 'doom-modeline)
 
-(defcustom doom-modeline-height (+ (window-font-height nil 'mode-line) 4)
+(defcustom doom-modeline-height (+ (line-pixel-height) 4)
   "How tall the mode-line should be. It's only respected in GUI.
 If the actual char height is larger, it respects the actual char height."
   :type 'integer
@@ -1429,7 +1429,7 @@ The result is cached per-frame to avoid expensive calculations during redisplay.
         ;; Return cached value if frame exists in cache and face attribute matches
         (car cache-entry)
       ;; Else, recalculate and update cache for this frame
-      (let* ((base-char-height (window-font-height nil 'mode-line)) ; Use window-font-height in the context of the frame/window
+      (let* ((base-char-height (line-pixel-height)) ; Use window-font-height in the context of the frame/window
              (new-height (round
                           (* 1.0 (cond ((integerp current-face-height-attr) (/ current-face-height-attr 10.0)) ; Ensure float division
                                        ((floatp current-face-height-attr) (* current-face-height-attr base-char-height))
