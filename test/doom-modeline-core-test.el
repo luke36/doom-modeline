@@ -31,26 +31,27 @@
 
 (require 'cl-lib)
 (require 'doom-modeline-core)
+(require 'doom-modeline-segments)
 
 ;; XXX: This is a precaution for older Emacsen that may ship with
 ;; outdated versions of `project'.
 (load "project")
 
-;; (ert-deftest doom-modeline-icon/octicon-icon ()
-;;   (let ((doom-modeline-icon t)
-;;         (doom-modeline-unicode-fallback t))
-;;     ;; In TUI, fallback to unicode.
-;;     (should
-;;      (string= (substring-no-properties
-;;                (doom-modeline-icon 'octicon "nf-oct-octoface" "☻" ":)" :face 'error))
-;;               (nerd-icons-octicon "nf-oct-octoface")))))
+(ert-deftest doom-modeline-icon/octicon-icon ()
+  (let ((doom-modeline-icon t)
+        (doom-modeline-unicode-fallback t))
+    ;; In TUI, fallback to unicode.
+    (should
+     (string= (substring-no-properties
+               (doom-modeline-icon 'octicon "nf-oct-smiley" "☻" ":)" :face 'error))
+              ""))))
 
 (ert-deftest doom-modeline-icon/octicon-unicode ()
   (let ((doom-modeline-icon nil)
         (doom-modeline-unicode-fallback t))
     (should
      (string= (substring-no-properties
-               (doom-modeline-icon 'octicon "nf-oct-octoface" "☻" ":)" :face 'warning))
+               (doom-modeline-icon 'octicon "nf-oct-smiley" "☻" ":)" :face 'warning))
               "☻"))))
 
 (ert-deftest doom-modeline-icon/octicon-text ()
@@ -58,7 +59,7 @@
         (doom-modeline-unicode-fallback nil))
     (should
      (string= (substring-no-properties
-               (doom-modeline-icon 'octicon "nf-oct-octoface" "☻" ":)" :face 'success))
+               (doom-modeline-icon 'octicon "nf-oct-smiley" "☻" ":)" :face 'success))
               ":)"))))
 
 (ert-deftest doom-modeline-project-root/auto ()
@@ -338,5 +339,450 @@
        (string= (substring-no-properties
                  (doom-modeline--buffer-file-name-relative file-path true-file-path 'include-project))
                 "project/relative/test.txt")))))
+
+(ert-deftest doom-modeline-enable-buffer-position/test ()
+  "Test that `doom-modeline-enable-buffer-position' is defined correctly."
+  ;; Test that the variable exists and defaults to t
+  (should (boundp 'doom-modeline-enable-buffer-position))
+  (should doom-modeline-enable-buffer-position)
+
+  ;; Test that it can be set to nil
+  (let ((doom-modeline-enable-buffer-position nil))
+    (should-not doom-modeline-enable-buffer-position)))
+
+;;
+;; Tests for doom-modeline-def-segment
+;;
+
+(ert-deftest doom-modeline-def-segment/function-segment ()
+  "Test defining a function-based segment."
+  (let ((doom-modeline--fn-alist nil)
+        (doom-modeline--var-alist nil))
+    (unwind-protect
+        (progn
+          ;; Define a function segment
+          (doom-modeline-def-segment test-func-seg
+            "Test segment that returns a string."
+            "test-value")
+
+          ;; Should be added to fn-alist
+          (should (assoc 'test-func-seg doom-modeline--fn-alist))
+          ;; Should create a function
+          (should (fboundp (cdr (assoc 'test-func-seg doom-modeline--fn-alist))))
+          ;; Function should return the value
+          (should (string= "test-value"
+                           (funcall (cdr (assoc 'test-func-seg doom-modeline--fn-alist))))))
+      (setq doom-modeline--fn-alist nil
+            doom-modeline--var-alist nil))))
+
+(ert-deftest doom-modeline-def-segment/variable-segment ()
+  "Test defining a variable reference segment."
+  (let ((doom-modeline--fn-alist nil)
+        (doom-modeline--var-alist nil))
+    (unwind-protect
+        (progn
+          ;; Define a variable segment (just a symbol, no body)
+          (doom-modeline-def-segment test-var-seg buffer-info)
+
+          ;; Should be added to var-alist, not fn-alist
+          (should-not (assoc 'test-var-seg doom-modeline--fn-alist))
+          (should (assoc 'test-var-seg doom-modeline--var-alist))
+          (should (eq (cdr (assoc 'test-var-seg doom-modeline--var-alist)) 'buffer-info)))
+      (setq doom-modeline--fn-alist nil
+            doom-modeline--var-alist nil))))
+
+(ert-deftest doom-modeline-def-segment/with-docstring ()
+  "Test defining a segment with docstring."
+  (let ((doom-modeline--fn-alist nil)
+        (doom-modeline--var-alist nil))
+    (unwind-protect
+        (progn
+          (doom-modeline-def-segment test-doc-seg
+            "This is the docstring."
+            "value")
+
+          ;; Check the function has the docstring
+          (let ((fn (cdr (assoc 'test-doc-seg doom-modeline--fn-alist))))
+            (should (string= (documentation fn) "This is the docstring."))))
+      (setq doom-modeline--fn-alist nil
+            doom-modeline--var-alist nil))))
+
+;;
+;; Tests for doom-modeline-def-modeline
+;;
+
+(ert-deftest doom-modeline-def-modeline/basic ()
+  "Test defining a basic modeline."
+  (let ((doom-modeline--modelines nil))
+    (unwind-protect
+        (progn
+          (doom-modeline-def-modeline 'test-basic-modeline
+            '(buffer-info)
+            '(major-mode))
+
+          ;; Should be registered in modelines
+          (should (assoc 'test-basic-modeline doom-modeline--modelines))
+          ;; Should have correct lhs and rhs
+          (let ((def (assoc 'test-basic-modeline doom-modeline--modelines)))
+            (should (equal (cadr def) '(buffer-info)))
+            (should (equal (caddr def) '(major-mode)))))
+      (setq doom-modeline--modelines nil))))
+
+(ert-deftest doom-modeline-def-modeline/lhs-only ()
+  "Test defining a modeline with only LHS."
+  (let ((doom-modeline--modelines nil))
+    (unwind-protect
+        (progn
+          (doom-modeline-def-modeline 'test-lhs-only
+            '(buffer-info))
+
+          (let ((def (assoc 'test-lhs-only doom-modeline--modelines)))
+            (should (equal (cadr def) '(buffer-info)))
+            (should (equal (caddr def) nil))))
+      (setq doom-modeline--modelines nil))))
+
+(ert-deftest doom-modeline-def-modeline/empty-rhs ()
+  "Test defining a modeline with empty RHS."
+  (let ((doom-modeline--modelines nil))
+    (unwind-protect
+        (progn
+          (doom-modeline-def-modeline 'test-empty-rhs
+            '(buffer-info)
+            nil)
+
+          (let ((def (assoc 'test-empty-rhs doom-modeline--modelines)))
+            (should (equal (cadr def) '(buffer-info)))
+            (should (equal (caddr def) nil))))
+      (setq doom-modeline--modelines nil))))
+
+(ert-deftest doom-modeline-def-modeline/update-existing ()
+  "Test updating an existing modeline definition."
+  (let ((doom-modeline--modelines nil))
+    (unwind-protect
+        (progn
+          ;; Define initial modeline
+          (doom-modeline-def-modeline 'test-update
+            '(buffer-info)
+            '(major-mode))
+
+          ;; Update it
+          (doom-modeline-def-modeline 'test-update
+            '(buffer-info buffer-position)
+            '(major-mode time))
+
+          ;; Should be updated, not duplicated
+          (let ((count 0))
+            (dolist (def doom-modeline--modelines)
+              (when (eq (car def) 'test-update)
+                (cl-incf count)))
+            (should (= count 1)))
+
+          ;; Should have new values
+          (let ((def (assoc 'test-update doom-modeline--modelines)))
+            (should (equal (cadr def) '(buffer-info buffer-position)))
+            (should (equal (caddr def) '(major-mode time)))))
+      (setq doom-modeline--modelines nil))))
+
+(ert-deftest doom-modeline-def-modeline/multiple-segments ()
+  "Test defining a modeline with multiple segments."
+  (let ((doom-modeline--modelines nil))
+    (unwind-protect
+        (progn
+          (doom-modeline-def-modeline 'test-multi
+            '(bar buffer-info buffer-info-simple matches)
+            '(major-mode time buffer-encoding))
+
+          (let ((def (assoc 'test-multi doom-modeline--modelines)))
+            (should (equal (cadr def) '(bar buffer-info buffer-info-simple matches)))
+            (should (equal (caddr def) '(major-mode time buffer-encoding)))))
+      (setq doom-modeline--modelines nil))))
+
+;;
+;; Tests for doom-modeline-add-segment
+;;
+
+(ert-deftest doom-modeline--insert-segment-in-list/after ()
+  "Test inserting segment after anchor."
+  (should (equal '(a b x c)
+                 (doom-modeline--insert-segment-in-list '(a b c) 'b 'x :after)))
+  (should (equal '(a x)
+                 (doom-modeline--insert-segment-in-list '(a) 'nonexistent 'x :after)))
+  (should (equal '(a x)
+                 (doom-modeline--insert-segment-in-list '(a) 'a 'x :after))))
+
+(ert-deftest doom-modeline--insert-segment-in-list/before ()
+  "Test inserting segment before anchor."
+  (should (equal '(a x b c)
+                 (doom-modeline--insert-segment-in-list '(a b c) 'b 'x :before)))
+  (should (equal '(x a)
+                 (doom-modeline--insert-segment-in-list '(a) 'a 'x :before)))
+  (should (equal '(a x)
+                 (doom-modeline--insert-segment-in-list '(a) 'nonexistent 'x :before))))
+
+(ert-deftest doom-modeline--insert-segment-in-list/empty ()
+  "Test inserting into empty list."
+  (should (equal '(x)
+                 (doom-modeline--insert-segment-in-list nil 'anchor 'x :after))))
+
+(ert-deftest doom-modeline-add-segment/to-all-modelines ()
+  "Test adding segment to all modelines."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        ;; Use existing segments that are already defined in the package
+        ;; Define test modelines using existing segments
+        (doom-modeline-def-modeline 'test-main-seg
+          '(buffer-info buffer-info-simple)
+          '(major-mode time))
+        (doom-modeline-def-modeline 'test-minimal-seg
+          '(buffer-info)
+          '(major-mode))
+
+        ;; Add segment after buffer-info in all modelines
+        (doom-modeline-add-segment 'buffer-position 'buffer-info)
+
+        ;; Verify segment was added after buffer-info in both modelines
+        (should (member 'buffer-position
+                        (cadr (assq 'test-main-seg doom-modeline--modelines))))
+        (should (member 'buffer-position
+                        (cadr (assq 'test-minimal-seg doom-modeline--modelines)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-add-segment/to-specific-modeline ()
+  "Test adding segment to a specific modeline only."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        ;; Define test modelines using existing segments
+        (doom-modeline-def-modeline 'test-main2-seg
+          '(buffer-info buffer-info-simple)
+          '(major-mode))
+        (doom-modeline-def-modeline 'test-minimal2-seg
+          '(buffer-info)
+          '(major-mode))
+
+        ;; Add segment only to test-main2
+        (doom-modeline-add-segment 'buffer-position 'buffer-info :after 'test-main2-seg)
+
+        ;; Verify segment was added only to test-main2
+        (should (member 'buffer-position
+                        (cadr (assq 'test-main2-seg doom-modeline--modelines))))
+        ;; test-minimal2 should NOT have the segment
+        (should-not (member 'buffer-position
+                            (cadr (assq 'test-minimal2-seg doom-modeline--modelines)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-add-segment/before-position ()
+  "Test adding segment before anchor."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-main3-seg
+          '(buffer-info buffer-info-simple)
+          '(major-mode))
+
+        ;; Add segment before buffer-info
+        (doom-modeline-add-segment 'buffer-position 'buffer-info :before)
+
+        ;; Verify segment was added before buffer-info
+        (let ((lhs (cadr (assq 'test-main3-seg doom-modeline--modelines))))
+          (should (equal (car lhs) 'buffer-position))
+          (should (equal (cadr lhs) 'buffer-info))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-add-segment/excluded-modelines ()
+  "Test that excluded modelines are not modified."
+  (setq doom-modeline-excluded-modelines '(test-minimal4-seg))
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-main4-seg
+          '(buffer-info)
+          '(major-mode))
+        (doom-modeline-def-modeline 'test-minimal4-seg
+          '(buffer-info)
+          '(major-mode))
+
+        ;; Add segment to all modelines
+        (doom-modeline-add-segment 'buffer-position 'buffer-info)
+
+        ;; test-main4 should have the segment
+        (should (member 'buffer-position
+                        (cadr (assq 'test-main4-seg doom-modeline--modelines))))
+        ;; test-minimal4 should NOT have the segment (it's excluded)
+        (should-not (member 'buffer-position
+                            (cadr (assq 'test-minimal4-seg doom-modeline--modelines)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-add-segment/to-rhs ()
+  "Test adding segment to RHS when anchor is in RHS."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-main5-seg
+          '(buffer-info)
+          '(major-mode time))
+
+        ;; Add segment after major-mode (which is in RHS)
+        (doom-modeline-add-segment 'buffer-position 'major-mode :after)
+
+        ;; Verify segment was added to RHS after major-mode
+        (let ((rhs (caddr (assq 'test-main5-seg doom-modeline--modelines))))
+          (should (equal rhs '(major-mode buffer-position time)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-add-segment/to-both-lhs-and-rhs ()
+  "Test adding segment when anchor exists in both LHS and RHS."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-main6-seg
+          '(buffer-info time)
+          '(time major-mode))
+
+        ;; Add segment after time (which exists in both LHS and RHS)
+        (doom-modeline-add-segment 'buffer-position 'time :after)
+
+        ;; Verify segment was added to both LHS and RHS after time
+        (let ((lhs (cadr (assq 'test-main6-seg doom-modeline--modelines)))
+              (rhs (caddr (assq 'test-main6-seg doom-modeline--modelines))))
+          (should (equal lhs '(buffer-info time buffer-position)))
+          (should (equal rhs '(time buffer-position major-mode)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+;;
+;; Tests for doom-modeline-remove-segment
+;;
+
+(ert-deftest doom-modeline--remove-segment-from-list ()
+  "Test removing segment from list."
+  (should (equal '(a b c)
+                 (doom-modeline--remove-segment-from-list '(a b c d) 'd)))
+  (should (equal '(b c)
+                 (doom-modeline--remove-segment-from-list '(a b c) 'a)))
+  (should (equal '(a c)
+                 (doom-modeline--remove-segment-from-list '(a b c) 'b)))
+  (should (equal '(a b c)
+                 (doom-modeline--remove-segment-from-list '(a b c) 'nonexistent)))
+  (should (equal nil
+                 (doom-modeline--remove-segment-from-list '(a) 'a)))
+  (should (equal nil
+                 (doom-modeline--remove-segment-from-list nil 'a))))
+
+(ert-deftest doom-modeline-remove-segment/from-lhs ()
+  "Test removing segment from LHS."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-lhs
+          '(buffer-info buffer-position buffer-info-simple)
+          '(major-mode))
+
+        ;; Remove buffer-position from LHS
+        (doom-modeline-remove-segment 'buffer-position)
+
+        ;; Verify segment was removed from LHS
+        (let ((lhs (cadr (assq 'test-remove-lhs doom-modeline--modelines))))
+          (should (equal lhs '(buffer-info buffer-info-simple)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-remove-segment/from-rhs ()
+  "Test removing segment from RHS."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-rhs
+          '(buffer-info)
+          '(major-mode time buffer-position))
+
+        ;; Remove buffer-position from RHS
+        (doom-modeline-remove-segment 'buffer-position)
+
+        ;; Verify segment was removed from RHS
+        (let ((rhs (caddr (assq 'test-remove-rhs doom-modeline--modelines))))
+          (should (equal rhs '(major-mode time)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-remove-segment/from-both-sides ()
+  "Test removing segment from both LHS and RHS."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-both
+          '(buffer-info time)
+          '(time major-mode))
+
+        ;; Remove time from both sides
+        (doom-modeline-remove-segment 'time)
+
+        ;; Verify segment was removed from both LHS and RHS
+        (let ((lhs (cadr (assq 'test-remove-both doom-modeline--modelines)))
+              (rhs (caddr (assq 'test-remove-both doom-modeline--modelines))))
+          (should (equal lhs '(buffer-info)))
+          (should (equal rhs '(major-mode)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-remove-segment/to-specific-modeline ()
+  "Test removing segment from a specific modeline only."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-specific1
+          '(buffer-info buffer-position)
+          '(major-mode))
+        (doom-modeline-def-modeline 'test-remove-specific2
+          '(buffer-info buffer-position)
+          '(major-mode))
+
+        ;; Remove segment only from test-remove-specific1
+        (doom-modeline-remove-segment 'buffer-position 'test-remove-specific1)
+
+        ;; Verify segment was removed only from test-remove-specific1
+        (let ((lhs1 (cadr (assq 'test-remove-specific1 doom-modeline--modelines)))
+              (lhs2 (cadr (assq 'test-remove-specific2 doom-modeline--modelines))))
+          (should (equal lhs1 '(buffer-info)))
+          (should (equal lhs2 '(buffer-info buffer-position)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-remove-segment/excluded-modelines ()
+  "Test that excluded modelines are not modified."
+  (setq doom-modeline-excluded-modelines '(test-remove-excluded))
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-main
+          '(buffer-info buffer-position)
+          '(major-mode))
+        (doom-modeline-def-modeline 'test-remove-excluded
+          '(buffer-info buffer-position)
+          '(major-mode))
+
+        ;; Remove segment from all modelines
+        (doom-modeline-remove-segment 'buffer-position)
+
+        ;; test-remove-main should have segment removed
+        (let ((lhs-main (cadr (assq 'test-remove-main doom-modeline--modelines))))
+          (should (equal lhs-main '(buffer-info))))
+        ;; test-remove-excluded should NOT have segment removed (it's excluded)
+        (let ((lhs-excluded (cadr (assq 'test-remove-excluded doom-modeline--modelines))))
+          (should (equal lhs-excluded '(buffer-info buffer-position)))))
+    (setq doom-modeline-excluded-modelines nil)))
+
+(ert-deftest doom-modeline-remove-segment/not-found ()
+  "Test removing segment that doesn't exist."
+  (setq doom-modeline-excluded-modelines nil)
+  (unwind-protect
+      (progn
+        (doom-modeline-def-modeline 'test-remove-not-found
+          '(buffer-info buffer-info-simple)
+          '(major-mode time))
+
+        ;; Try to remove non-existent segment
+        (doom-modeline-remove-segment 'nonexistent-segment)
+
+        ;; Modeline should be unchanged
+        (let ((lhs (cadr (assq 'test-remove-not-found doom-modeline--modelines)))
+              (rhs (caddr (assq 'test-remove-not-found doom-modeline--modelines))))
+          (should (equal lhs '(buffer-info buffer-info-simple)))
+          (should (equal rhs '(major-mode time)))))
+    (setq doom-modeline-excluded-modelines nil)))
 
 ;;; doom-modeline-core-test.el ends here

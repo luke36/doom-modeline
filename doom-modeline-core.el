@@ -1,6 +1,6 @@
 ;;; doom-modeline-core.el --- The core libraries for doom-modeline -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018-2025 Vincent Zhang
+;; Copyright (C) 2018-2026 Vincent Zhang
 
 ;; This file is not part of GNU Emacs.
 
@@ -40,7 +40,7 @@
 
 (unless (boundp 'mode-line-right-align-edge)
   (defcustom mode-line-right-align-edge 'window
-    "Where mode-line should align to.
+    "Where function `mode-line-format-right-align' should align to.
 Internally, that function uses `:align-to' in a display property,
 so aligns to the left edge of the given area.  See info node
 `(elisp)Pixel Specification'.
@@ -261,11 +261,16 @@ See `doom-modeline-time-analogue-clock'."
 (defcustom doom-modeline-time-clock-size 0.7
   "Size of the analogue clock drawn, either in pixels or as a proportional height.
 An integer value is used as the diameter of clock in pixels.
-A floating point value sets the diameter of the clock realtive to
+A floating point value sets the diameter of the clock relative to
 `doom-modeline-height'.
 
 Only relevant when `doom-modeline-time-analogue-clock' is non-nil, which see."
   :type 'number
+  :group 'doom-modeline)
+
+(defcustom doom-modeline-unicode-number t
+  "Whether to use unicode numbers."
+  :type 'boolean
   :group 'doom-modeline)
 
 (defcustom doom-modeline-unicode-fallback nil
@@ -284,7 +289,7 @@ Only relevant when `doom-modeline-time-analogue-clock' is non-nil, which see."
   :group 'doom-modeline)
 
 (defcustom doom-modeline-column-zero-based t
-  "When non-nil, mode line displays column numbers zero-based.
+  "When non-nil, mode line display column numbers zero-based.
 See `column-number-indicator-zero-based'."
   :type 'boolean
   :group 'doom-modeline)
@@ -327,6 +332,11 @@ See `mode-line-position-column-line-format'."
   :type 'boolean
   :group 'doom-modeline)
 
+(defcustom doom-modeline-selection-info t
+  "Whether display the selection information."
+  :type 'boolean
+  :group 'doom-modeline)
+
 (defcustom doom-modeline-enable-word-count nil
   "If non-nil, a word count will be added to the selection-info modeline segment."
   :type 'boolean
@@ -338,6 +348,11 @@ See `mode-line-position-column-line-format'."
 
 It respects `doom-modeline-enable-word-count'."
   :type '(repeat (symbol :tag "Major-Mode") )
+  :group 'doom-modeline)
+
+(defcustom doom-modeline-enable-buffer-position t
+  "Whether display the buffer position information."
+  :type 'boolean
   :group 'doom-modeline)
 
 (defcustom doom-modeline-buffer-encoding t
@@ -369,20 +384,31 @@ It respects `doom-modeline-enable-word-count'."
   :type 'boolean
   :group 'doom-modeline)
 
+(defcustom doom-modeline-remote-host t
+  "Whether to display remote host information."
+  :type 'boolean
+  :group 'doom-modeline)
+
 ;; It is based upon `editorconfig-indentation-alist' but is used to read indentation levels instead
 ;; of setting them. (https://github.com/editorconfig/editorconfig-emacs)
 (defcustom doom-modeline-indent-alist
   '((apache-mode apache-indent-level)
     (awk-mode c-basic-offset)
+    (awk-ts-mode awk-ts-mode-indent-level)
     (bpftrace-mode c-basic-offset)
-    (c++-mode c-basic-offset)
     (c-mode c-basic-offset)
+    (c++-mode c-basic-offset)
+    (c-ts-mode c-ts-mode-indent-offset)
+    (c++-ts-mode c-ts-mode-indent-offset)
     (cmake-mode cmake-tab-width)
+    (cmake-ts-mode cmake-ts-mode-indent-offset)
     (coffee-mode coffee-tab-width)
     (cperl-mode cperl-indent-level)
     (crystal-mode crystal-indent-level)
     (csharp-mode c-basic-offset)
+    (csharp-ts-mode csharp-ts-mode-indent-offset)
     (css-mode css-indent-offset)
+    (css-ts-mode css-indent-offset)
     (d-mode c-basic-offset)
     (emacs-lisp-mode lisp-indent-offset)
     (enh-ruby-mode enh-ruby-indent-level)
@@ -409,11 +435,15 @@ It respects `doom-modeline-enable-word-count'."
                   haskell-indentation-where-post-offset
                   haskell-indentation-where-pre-offset
                   shm-indent-spaces)
+    (haskell-ts-mode)
     (haxor-mode haxor-tab-width)
     (idl-mode c-basic-offset)
     (jade-mode jade-tab-width)
     (java-mode c-basic-offset)
+    (java-ts-mode java-ts-mode-indent-offset
+                  c-ts-common-statement-offset)
     (js-mode js-indent-level)
+    (js-ts-mode js-indent-level)
     (js-jsx-mode js-indent-level
                  sgml-basic-offset)
     (js2-mode js2-basic-offset)
@@ -421,12 +451,16 @@ It respects `doom-modeline-enable-word-count'."
                   sgml-basic-offset)
     (js3-mode js3-indent-level)
     (json-mode js-indent-level)
+    (json-ts-mode json-ts-mode-indent-offset)
     (julia-mode julia-indent-offset)
+    (julia-ts-mode julia-ts-indent-offset)
     (kotlin-mode kotlin-tab-width)
+    (kotlin-mode kotlin-ts-mode-indent-offset)
     (latex-mode tex-indent-basic)
     (lisp-mode lisp-indent-offset)
     (livescript-mode livescript-tab-width)
     (lua-mode lua-indent-level)
+    (lua-ts-mode lua-ts-indent-offset)
     (matlab-mode matlab-indent-level)
     (mips-mode mips-tab-width)
     (mustache-mode mustache-basic-offset)
@@ -437,25 +471,33 @@ It respects `doom-modeline-enable-word-count'."
     (octave-mode octave-block-offset)
     (perl-mode perl-indent-level)
     (php-mode c-basic-offset)
+    (php-ts-mode php-ts-mode-indent-offset)
     (pike-mode c-basic-offset)
     (ps-mode ps-mode-tab)
     (pug-mode pug-tab-width)
     (puppet-mode puppet-indent-level)
     (python-mode python-indent-offset)
+    (python-ts-mode python-indent-offset)
     (ruby-mode ruby-indent-level)
+    (ruby-ts-mode ruby-indent-level)
     (rust-mode rust-indent-offset)
+    (rust-ts-mode rust-ts-mode-indent-offset)
     (rustic-mode rustic-indent-offset)
     (scala-mode scala-indent:step)
+    (scala-ts-mode scala-ts-indent-offset)
     (scss-mode css-indent-offset)
     (sgml-mode sgml-basic-offset)
     (sh-mode sh-basic-offset
              sh-indentation)
+    (bash-ts-mode sh-basic-offset
+                  sh-indentation)
     (slim-mode slim-indent-offset)
     (sml-mode sml-indent-level)
     (tcl-mode tcl-indent-level
               tcl-continued-indent-level)
     (terra-mode terra-indent-level)
     (typescript-mode typescript-indent-level)
+    (typescript-ts-mode typescript-ts-mode-indent-offset)
     (verilog-mode verilog-indent-level
                   verilog-indent-level-behavioral
                   verilog-indent-level-declaration
@@ -471,7 +513,8 @@ It respects `doom-modeline-enable-word-count'."
               web-mode-block-padding
               web-mode-script-padding
               web-mode-style-padding)
-    (yaml-mode yaml-indent-offset))
+    (yaml-mode yaml-indent-offset)
+    (yaml-ts-mode yaml-indent-offset))
   "Indentation retrieving variables matched to major modes.
 
 Which is used when `doom-modeline-indent-info' is non-nil.
@@ -518,14 +561,17 @@ It respects option `doom-modeline-icon'."
   :type 'boolean
   :group 'doom-modeline)
 
-(define-obsolete-variable-alias
-  'doom-modeline-checker-simple-format
-  'doom-modeline-check-simple-format
-  "4.2.0")
+(defcustom doom-modeline-check 'auto
+  "How to display the check segment.
 
-(defcustom doom-modeline-check-simple-format nil
-  "If non-nil, only display one number for check information if applicable."
-  :type 'boolean
+auto mode adapts to window width (see `doom-modeline-window-width-limit').
+full displays all detailed error information.
+simple summarizes error counts.
+nil disables the check segment."
+  :type '(choice (const :tag "Auto format" auto)
+                 (const :tag "Full format" full)
+                 (const :tag "Simple format" simple)
+                 (const :tag "Disable" nil))
   :group 'doom-modeline)
 
 (defcustom doom-modeline-number-limit 99
@@ -653,8 +699,8 @@ number, Emacs must have been idle this given time, checked after
 reach the defined timer, to fetch news.  The time step can be
 configured in `gnus-demon-timestep'."
   :type '(choice
-	  (boolean :tag "Set `doom-modeline-gnus-timer' as an idle timer")
-	  (number :tag "Set a custom idle timer"))
+	      (boolean :tag "Set `doom-modeline-gnus-timer' as an idle timer")
+	      (number :tag "Set a custom idle timer"))
   :group 'doom-modeline)
 
 (defcustom doom-modeline-gnus-excluded-groups nil
@@ -858,7 +904,7 @@ Also see the face `doom-modeline-unread-number'."
   :group 'doom-modeline-faces)
 
 (defface doom-modeline-bar-inactive
-  `((t (:inherit doom-modeline)))
+  `((t ()))
   "The face used for the left-most bar in the mode-line of an inactive window."
   :group 'doom-modeline-faces)
 
@@ -1046,7 +1092,7 @@ Which are not explicitly listed in `doom-modeline-vcs-state-faces-alist'."
   :group 'doom-modeline-faces)
 
 (defface doom-modeline-battery-normal
-  '((t (:inherit (doom-modeline mode-line))))
+  '((t (:inherit doom-modeline)))
   "Face for battery normal status."
   :group 'doom-modeline-faces)
 
@@ -1065,11 +1111,6 @@ Which are not explicitly listed in `doom-modeline-vcs-state-faces-alist'."
   "Face for battery error status."
   :group 'doom-modeline-faces)
 
-(defface doom-modeline-buffer-timemachine
-  '((t (:inherit doom-modeline-buffer-file :slant italic)))
-  "Face for timemachine status."
-  :group 'doom-modeline-faces)
-
 (defface doom-modeline-time
   '((t (:inherit doom-modeline)))
   "Face for display time."
@@ -1079,15 +1120,13 @@ Which are not explicitly listed in `doom-modeline-vcs-state-faces-alist'."
   '((t (:inherit doom-modeline-warning :slant italic :height 0.9)))
   "Face for compilation progress."
   :group 'doom-modeline-faces)
+
 
 ;;
 ;; Externals
 ;;
 
-(defvar mode-line-right-align-edge)
-
 (declare-function doom-modeline-shorten-irc "doom-modeline-segments")
-(declare-function face-remap-remove-relative "face-remap")
 (declare-function ffip-project-root "ext:find-file-in-project")
 (declare-function project-root "project")
 (declare-function projectile-project-root "ext:projectile")
@@ -1172,9 +1211,9 @@ used as an advice to window creation functions."
   (and (featurep 'mwheel) (bound-and-true-p mouse-wheel-mode)))
 
 ;; Keep `doom-modeline-current-window' up-to-date
-(defun doom-modeline--selected-window ()
-  "Get the selected window."
-  (frame-selected-window))
+(defun doom-modeline--selected-window (&optional frame)
+  "Get the selected window of FRAME."
+  (frame-selected-window frame))
 
 (defvar doom-modeline-current-window (doom-modeline--selected-window)
   "Current window.")
@@ -1198,8 +1237,8 @@ used as an advice to window creation functions."
 
 (defun doom-modeline-set-selected-window (&rest _)
   "Set `doom-modeline-current-window' appropriately."
-  (let ((win (doom-modeline--selected-window)))
-    (setq doom-modeline-current-window
+  (setq doom-modeline-current-window
+        (let ((win (doom-modeline--selected-window)))
           (if (minibuffer-window-active-p win)
               (minibuffer-selected-window)
             win))))
@@ -1208,59 +1247,24 @@ used as an advice to window creation functions."
   "Unset `doom-modeline-current-window' appropriately."
   (setq doom-modeline-current-window nil))
 
-(add-hook 'pre-redisplay-functions #'doom-modeline-set-selected-window)
+(defun doom-modeline-focus-change (&rest _)
+  "Focus change."
+  ;; (if (frame-focus-state)
+  ;;     (doom-modeline-set-selected-window)
+  ;;   (doom-modeline-unset-selected-window))
+  )
 
-;; Ensure modeline is inactive when Emacs is unfocused
-(defvar doom-modeline--remap-faces '(mode-line
-                                     mode-line-active
-                                     mode-line-emphasis
-                                     mode-line-highlight
-                                     mode-line-buffer-id
-                                     doom-modeline
-                                     solaire-mode-line-face
-                                     solaire-mode-line-active-face
-                                     paradox-mode-line-face
-                                     flycheck-color-mode-line-error-face
-                                     flycheck-color-mode-line-warning-face
-                                     flycheck-color-mode-line-info-face
-                                     flycheck-color-mode-line-success-face))
-
-(defvar doom-modeline--remap-face-cookie-alist nil)
-(defun doom-modeline-focus ()
-  "Focus mode-line."
-  (mapc #'face-remap-remove-relative doom-modeline--remap-face-cookie-alist))
-
-(defun doom-modeline-unfocus ()
-  "Unfocus mode-line."
-  (dolist (face doom-modeline--remap-faces)
-    (add-to-list 'doom-modeline--remap-face-cookie-alist
-                 (face-remap-add-relative face 'mode-line-inactive))))
-
-(with-no-warnings
-  (if (boundp 'after-focus-change-function)
-      (progn
-        (defun doom-modeline-focus-change (&rest _)
-          (if (frame-focus-state (frame-parent))
-              (progn
-                (doom-modeline-focus)
-                ;; HACK: pulse after focusing in the frame to refresh the buffer name.
-                ;; @see https://github.com/seagle0128/doom-modeline/issues/591
-                (when (fboundp 'pulse-momentary-highlight-region)
-                  (pulse-momentary-highlight-region 0 0)))
-            (doom-modeline-unfocus)))
-        (advice-add #'handle-switch-frame :after #'doom-modeline-focus-change)
-        (add-function :after after-focus-change-function #'doom-modeline-focus-change))
-    (progn
-      (add-hook 'focus-in-hook #'doom-modeline-focus)
-      (add-hook 'focus-out-hook #'doom-modeline-unfocus))))
 
 
 ;;
 ;; Core
 ;;
 
-(defvar doom-modeline-fn-alist ())
-(defvar doom-modeline-var-alist ())
+(defvar doom-modeline--fn-alist ())
+(defvar doom-modeline--var-alist ())
+(defvar doom-modeline--modelines ()
+  "Alist of modeline definitions.
+Each element is (NAME . ((lhs-segments...) (rhs-segments...))).")
 
 (defmacro doom-modeline-def-segment (name &rest body)
   "Define a modeline segment NAME with BODY and byte compiles it."
@@ -1271,11 +1275,11 @@ used as an advice to window creation functions."
                      (format "%s modeline segment" name))))
     (cond ((and (symbolp (car body))
                 (not (cdr body)))
-           `(add-to-list 'doom-modeline-var-alist (cons ',name ',(car body))))
+           `(add-to-list 'doom-modeline--var-alist (cons ',name ',(car body))))
           (t
            `(progn
               (defun ,sym () ,docstring ,@body)
-              (add-to-list 'doom-modeline-fn-alist (cons ',name ',sym))
+              (add-to-list 'doom-modeline--fn-alist (cons ',name ',sym))
               ,(unless (bound-and-true-p byte-compile-current-file)
                  `(let (byte-compile-warnings)
                     (unless (and (fboundp 'subr-native-elisp-p)
@@ -1289,9 +1293,9 @@ used as an advice to window creation functions."
       (cond ((stringp seg)
              (push seg forms))
             ((symbolp seg)
-             (cond ((setq it (alist-get seg doom-modeline-fn-alist))
+             (cond ((setq it (alist-get seg doom-modeline--fn-alist))
                     (push (list :eval (list it)) forms))
-                   ((setq it (alist-get seg doom-modeline-var-alist))
+                   ((setq it (alist-get seg doom-modeline--var-alist))
                     (push it forms))
                    ((error "%s is not a defined segment" seg))))
             ((error "%s is not a valid segment" seg))))
@@ -1308,13 +1312,18 @@ Example:
     \\='(bar matches \" \" buffer-info)
     \\='(media-info major-mode))
   (doom-modeline-set-modeline \\='minimal t)"
+  ;; Register the modeline definition for runtime manipulation
+  (let ((def (assq name doom-modeline--modelines)))
+    (if def
+        (setcdr def (list lhs rhs))
+      (push (cons name (list lhs rhs)) doom-modeline--modelines)))
   (let ((sym (intern (format "doom-modeline-format--%s" name)))
         (lhs-forms (doom-modeline--prepare-segments lhs))
         (rhs-forms (doom-modeline--prepare-segments rhs)))
     (defalias sym
       (lambda ()
         (list lhs-forms
-              (let* ((rhs-str (format-mode-line (cons "" rhs-forms)))
+              (let* ((rhs-str (format-mode-line `("" ,@rhs-forms)))
                      (rhs-width (progn
                                   (add-face-text-property
                                    0 (length rhs-str) 'mode-line t rhs-str)
@@ -1325,21 +1334,24 @@ Example:
                  'display
                  ;; Backport from `mode-line-right-align-edge' in 30
                  (if (and (display-graphic-p)
-                           (not (eq mode-line-right-align-edge 'window)))
-		              `(space :align-to (- ,mode-line-right-align-edge
-                                           (,rhs-width)))
-		            `(space :align-to (,(- (window-pixel-width)
-                                           (window-scroll-bar-width)
-                                           (window-right-divider-width)
-                                           (* (or (cdr (window-margins)) 1)
-                                              (frame-char-width))
-                                           (pcase mode-line-right-align-edge
-                                             ('right-margin
-                                              (or (cdr (window-margins)) 0))
-                                             ('right-fringe
-                                              (or (cadr (window-fringes)) 0))
-                                             (_ 0))
-                                           rhs-width))))))
+                          (not (eq mode-line-right-align-edge 'window)))
+		             `(space :align-to (- ,mode-line-right-align-edge
+                                          (,rhs-width)))
+		           `(space :align-to (,(- (window-pixel-width)
+                                          (window-scroll-bar-width)
+                                          (window-right-divider-width)
+                                          (* (or (car (window-margins)) 1)
+                                             (frame-char-width))
+                                          ;; Manually account for value of
+                                          ;; `mode-line-right-align-edge' even
+                                          ;; when display is non-graphical
+                                          (pcase mode-line-right-align-edge
+                                            ('right-margin
+                                             (or (cdr (window-margins)) 0))
+                                            ('right-fringe
+                                             (or (cadr (window-fringes)) 0))
+                                            (_ 0))
+                                          rhs-width))))))
               rhs-forms))
       (concat "Modeline:\n"
               (format "  %s\n  %s"
@@ -1363,6 +1375,102 @@ If DEFAULT is non-nil, set the default mode-line for all buffers."
             mode-line-format)
           (list "%e" modeline))))
 
+;;
+;; Modeline Segment Management
+;;
+
+(defcustom doom-modeline-excluded-modelines nil
+  "List of modeline names to exclude from `doom-modeline-add-segment'.
+These modelines will not be modified when adding segments programmatically."
+  :type '(repeat symbol)
+  :group 'doom-modeline)
+
+(defun doom-modeline--insert-segment-in-list (list anchor segment position)
+  "Insert SEGMENT in LIST relative to ANCHOR at POSITION.
+POSITION can be :before or :after.
+Returns the modified list."
+  (cond ((null list) (list segment))
+        ((eq (car list) anchor)
+         (if (eq position :before)
+             (cons segment list)
+           (cons anchor (cons segment (cdr list)))))
+        (t
+         (cons (car list)
+               (doom-modeline--insert-segment-in-list (cdr list) anchor segment position)))))
+
+(defun doom-modeline--remove-segment-from-list (list segment)
+  "Remove SEGMENT from LIST.
+Returns the modified list."
+  (cond ((null list) nil)
+        ((eq (car list) segment)
+         (doom-modeline--remove-segment-from-list (cdr list) segment))
+        (t
+         (cons (car list)
+               (doom-modeline--remove-segment-from-list (cdr list) segment)))))
+
+(defun doom-modeline-add-segment (segment anchor &optional position modeline)
+  "Add SEGMENT to modeline(s) relative to ANCHOR segment.
+SEGMENT is the segment name to add (a symbol).
+ANCHOR is the segment name to anchor to (a symbol).
+POSITION can be :before or :after (default: :after).
+MODELINE can be a modeline name (symbol) to add to a specific modeline,
+or nil/'all to add to all modelines (respecting
+`doom-modeline-excluded-modelines').
+
+Modelines listed in `doom-modeline-excluded-modelines' are not modified
+when adding to all modelines."
+  (let ((modelines (if (or (null modeline) (eq modeline 'all))
+                       doom-modeline--modelines
+                     (list (assq modeline doom-modeline--modelines)))))
+    (dolist (modeline-def modelines)
+      (when modeline-def
+        (pcase-let ((`(,name . (,lhs ,rhs)) modeline-def))
+          (unless (memq name doom-modeline-excluded-modelines)
+            (let ((new-lhs lhs)
+                  (new-rhs rhs))
+              ;; Try to add to LHS
+              (when (memq anchor lhs)
+                (setq new-lhs (doom-modeline--insert-segment-in-list lhs anchor segment
+                                                                     (or position :after))))
+              ;; Try to add to RHS
+              (when (memq anchor rhs)
+                (setq new-rhs (doom-modeline--insert-segment-in-list rhs anchor segment
+                                                                     (or position :after))))
+              ;; Only redefine if at least one list was modified
+              (when (or (not (eq new-lhs lhs))
+                        (not (eq new-rhs rhs)))
+                (doom-modeline-def-modeline name new-lhs new-rhs)))))))))
+
+(defun doom-modeline-remove-segment (segment &optional modeline)
+  "Remove SEGMENT from modeline(s).
+SEGMENT is the segment name to remove (a symbol).
+MODELINE can be a modeline name (symbol) to remove from a specific modeline,
+or nil/'all to remove from all modelines (respecting
+`doom-modeline-excluded-modelines').
+
+Modelines listed in `doom-modeline-excluded-modelines' are not modified
+when removing segments programmatically."
+  (let ((modelines (if (or (null modeline) (eq modeline 'all))
+                       doom-modeline--modelines
+                     (list (assq modeline doom-modeline--modelines)))))
+    (dolist (modeline-def modelines)
+      (when modeline-def
+        (pcase-let ((`(,name . (,lhs ,rhs)) modeline-def))
+          (unless (memq name doom-modeline-excluded-modelines)
+            (let ((new-lhs lhs)
+                  (new-rhs rhs))
+              ;; Try to remove from LHS
+              (when (memq segment lhs)
+                (setq new-lhs (doom-modeline--remove-segment-from-list lhs segment)))
+              ;; Try to remove from RHS
+              (when (memq segment rhs)
+                (setq new-rhs (doom-modeline--remove-segment-from-list rhs segment)))
+              ;; Only redefine if at least one list was modified
+              (when (or (not (eq new-lhs lhs))
+                        (not (eq new-rhs rhs)))
+                (doom-modeline-def-modeline name new-lhs new-rhs)))))))))
+
+
 ;;
 ;; Helpers
 ;;
@@ -1390,17 +1498,17 @@ If DEFAULT is non-nil, set the default mode-line for all buffers."
 IF FACE is nil, `mode-line' face will be used.
 If INACTIVE-FACE is nil, `mode-line-inactive' face will be used."
   (if (doom-modeline--active)
-      (or (and (facep face) `(:inherit (doom-modeline ,face)))
-          (and (facep 'mode-line-active) '(:inherit (doom-modeline mode-line-active)))
-          '(:inherit (doom-modeline mode-line)))
-    (or (and (facep inactive-face) `(:inherit (doom-modeline ,inactive-face)))
-        '(:inherit (doom-modeline mode-line-inactive)))))
+      `(:inherit (doom-modeline
+                  ,(cond ((facep face) face)
+                         ((facep 'mode-line-active) 'mode-line-active)
+                         (t 'mode-line))))
+    `(:inherit (doom-modeline
+                ,(if (facep inactive-face) inactive-face
+                   'mode-line-inactive)))))
 
-(defun doom-modeline-spc-face ()
-  "Apply `doom-modeline-spc-face-overrides' to `doom-modeline-face'."
-  (append
-   `(:inherit ,(doom-modeline-face))
-   doom-modeline-spc-face-overrides))
+(defun doom-modeline-spc-face (&optional face)
+  "Apply FACE or `doom-modeline-spc-face-overrides' to `doom-modeline-face'."
+  `(:inherit (,(doom-modeline-face) ,face ,doom-modeline-spc-face-overrides)))
 
 (defun doom-modeline-string-pixel-width (str)
   "Return the width of STR in pixels."
@@ -1431,9 +1539,12 @@ The result is cached per-frame to avoid expensive calculations during redisplay.
       ;; Else, recalculate and update cache for this frame
       (let* ((base-char-height (line-pixel-height)) ; Use window-font-height in the context of the frame/window
              (new-height (round
-                          (* 1.0 (cond ((integerp current-face-height-attr) (/ current-face-height-attr 10.0)) ; Ensure float division
-                                       ((floatp current-face-height-attr) (* current-face-height-attr base-char-height))
-                                       (t base-char-height))))))
+                          (* 1.0 (cond
+                                  ((integerp current-face-height-attr)
+                                   (/ current-face-height-attr 10.0)) ; Ensure float division
+                                  ((floatp current-face-height-attr)
+                                   (* current-face-height-attr base-char-height))
+                                  (t base-char-height))))))
         ;; Update cache for the current frame
         (puthash frame (cons new-height current-face-height-attr) doom-modeline--font-height-cache)
         new-height))))
@@ -1463,14 +1574,14 @@ The face should be the first attribute, or the font family may be overridden.
 So convert the face \":family XXX :height XXX :inherit XXX\" to
 \":inherit XXX :family XXX :height XXX\".
 See https://github.com/seagle0128/doom-modeline/issues/301."
-  (when icon
+  (unless (or (null icon) (string-empty-p icon))
     (if (doom-modeline-icon-displayable-p)
         (when-let* ((props (get-text-property 0 'face icon)))
           (when (listp props)
             (cl-destructuring-bind (&key family height inherit &allow-other-keys) props
               (propertize icon 'face `(:inherit (doom-modeline ,(or face inherit props))
-                                                :family  ,(or family "")
-                                                :height  ,(or height 1.0))))))
+                                       :family  ,(or family "")
+                                       :height  ,(or height 1.0))))))
       (propertize icon 'face `(:inherit (doom-modeline ,face))))))
 
 (defun doom-modeline-icon (icon-set icon-name unicode text &rest args)
@@ -1574,8 +1685,8 @@ respectively."
         'pbm t :foreground color1 :background color2 :ascent 'center)))))
 
 ;; Check whether `window-total-width' is smaller than the limit
-(defun doom-modeline-window-size-change-function (&rest _)
-  "Function for `window-size-change-functions'."
+(defun doom-modeline-window-size-change (&rest _)
+  "Handles while window size is changed."
   (setq doom-modeline--limited-width-p
         (cond
          ((integerp doom-modeline-window-width-limit)
@@ -1583,10 +1694,9 @@ respectively."
          ((floatp doom-modeline-window-width-limit)
           (<= (/ (window-total-width) (frame-width) 1.0)
               doom-modeline-window-width-limit)))))
-
-(add-hook 'after-revert-hook #'doom-modeline-window-size-change-function)
-(add-hook 'buffer-list-update-hook #'doom-modeline-window-size-change-function)
-(add-hook 'window-size-change-functions #'doom-modeline-window-size-change-function)
+(add-hook 'after-revert-hook #'doom-modeline-window-size-change)
+(add-hook 'buffer-list-update-hook #'doom-modeline-window-size-change)
+(add-hook 'window-size-change-functions #'doom-modeline-window-size-change)
 
 (defvar-local doom-modeline--project-root nil)
 (defun doom-modeline--project-root ()

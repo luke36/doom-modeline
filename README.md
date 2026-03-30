@@ -38,7 +38,7 @@ The `doom-modeline` was designed for minimalism, and offers:
 - A customizable mode-line height (see `doom-modeline-height`)
 - A minor modes segment which is compatible with `minions`
 - An error/warning count segment for `flymake`/`flycheck`
-- A workspace number/name segment for `eyebrowse` or `tab-bar-mode`
+- A workspace name segment for `eyebrowse`/`tab-bar-mode`
 - A perspective name segment for `persp-mode`
 - A window number segment for `ace-window`, `winum` and `window-numbering`
 - An indicator for modal editing state, including `evil`, `overwrite`, `god`, `ryo` and
@@ -125,26 +125,12 @@ In `init.el`,
 (doom-modeline-mode 1)
 ```
 
-or
-
-```emacs-lisp
-(add-hook 'after-init-hook #'doom-modeline-mode)
-```
-
 ### Use-package
 
 ```emacs-lisp
 (use-package doom-modeline
   :ensure t
   :init (doom-modeline-mode 1))
-```
-
-or
-
-```emacs-lisp
-(use-package doom-modeline
-  :ensure t
-  :hook (after-init . doom-modeline-mode))
 ```
 
 This package is able to display icons if `nerd-icons` package and required
@@ -192,7 +178,7 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; nil means to use `default-directory'.
 ;; The project management packages have some issues on detecting project root.
 ;; e.g. `projectile' doesn't handle symlink folders well, while `project' is unable
-;; to hanle sub-projects.
+;; to handle sub-projects.
 ;; You can specify one if you encounter the issue.
 (setq doom-modeline-project-detection 'auto)
 
@@ -253,6 +239,9 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; The scaling factor used when drawing the analogue clock.
 (setq doom-modeline-time-clock-size 0.7)
 
+;; Whether to use unicode numbers.
+(setq doom-modeline-unicode-number t)
+
 ;; Whether to use unicode as a fallback (instead of ASCII) when not using icons.
 (setq doom-modeline-unicode-fallback nil)
 
@@ -284,6 +273,9 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; Whether display the minor modes in the mode-line.
 (setq doom-modeline-minor-modes nil)
 
+;; Whether display the selection information.
+(setq doom-modeline-selection-info t)
+
 ;; If non-nil, a word count will be added to the selection-info modeline segment.
 (setq doom-modeline-enable-word-count nil)
 
@@ -292,6 +284,9 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; If it brings the sluggish issue, disable `doom-modeline-enable-word-count' or
 ;; remove the modes from `doom-modeline-continuous-word-count-modes'.
 (setq doom-modeline-continuous-word-count-modes '(markdown-mode gfm-mode org-mode))
+
+;; Whether display the buffer position information.
+(setq doom-modeline-enable-buffer-position t)
 
 ;; Whether display the buffer encoding.
 (setq doom-modeline-buffer-encoding t)
@@ -323,8 +318,12 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; Whether display the icon of check segment. It respects option `doom-modeline-icon'.
 (setq doom-modeline-check-icon t)
 
-;; If non-nil, only display one number for check information if applicable.
-(setq doom-modeline-check-simple-format nil)
+;; How to display the check segment.
+;; auto mode adapts to window width (see `doom-modeline-window-width-limit').
+;; full displays all detailed error information.
+;; simple summarizes error counts.
+;; nil disables the check segment.
+(setq doom-modeline-check 'auto)
 
 ;; The maximum number displayed for notifications.
 (setq doom-modeline-number-limit 99)
@@ -378,7 +377,7 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; Whether gnus should automatically be updated and how often (set to 0 or smaller than 0 to disable)
 (setq doom-modeline-gnus-timer 2)
 
-;; Wheter groups should be excludede when gnus automatically being updated.
+;; Whether groups should be excluded when gnus automatically being updated.
 (setq doom-modeline-gnus-excluded-groups '("dummy.group"))
 
 ;; Whether display the IRC notifications. It requires `circe' or `erc' package.
@@ -396,6 +395,9 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 ;; Whether display the misc segment on all mode lines.
 ;; If nil, display only if the mode line is active.
 (setq doom-modeline-display-misc-in-all-mode-lines t)
+
+;; Whether to display the remote host information.
+(setq doom-modeline-remote-host t)
 
 ;; The function to handle `buffer-file-name'.
 (setq doom-modeline-buffer-file-name-function #'identity)
@@ -432,6 +434,101 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 (setq doom-modeline-before-update-env-hook nil)
 (setq doom-modeline-after-update-env-hook nil)
 ```
+
+## Programmatic Customization
+
+You can programmatically define segments and modelines, and add segments to existing modelines.
+
+### Defining Custom Segments
+
+Use `doom-modeline-def-segment` to define a new segment:
+
+```emacs-lisp
+(doom-modeline-def-segment segment-name
+  "Docstring describing the segment."
+  ;; Body that returns the segment string
+  (when some-condition
+    (format "output: %s" value)))
+```
+
+Example:
+```emacs-lisp
+(doom-modeline-def-segment evil-state
+  "Display evil state."
+  (when (bound-and-true-p evil-mode)
+    (format "[%s]" (symbol-name evil-state))))
+```
+
+### Defining Custom Modelines
+
+Use `doom-modeline-def-modeline` to define a new modeline:
+
+```emacs-lisp
+(doom-modeline-def-modeline modeline-name
+  '(left-hand-side segments)
+  '(right-hand-side segments))
+```
+
+Example:
+```emacs-lisp
+(doom-modeline-def-modeline 'my-simple-line
+  '(bar window-number buffer-info)
+  '(major-mode time))
+
+;; Set as the default modeline
+(add-hook 'doom-modeline-mode-hook
+          (lambda ()
+            (doom-modeline-set-modeline 'my-simple-line t)))
+
+;; Configure other mode-lines based on major modes
+(add-to-list 'doom-modeline-mode-alist '(my-mode . my-simple-line))
+
+;; Or disable other mode-lines
+(setq 'doom-modeline-mode-alist nil)
+```
+
+### Adding Segments to Existing Modelines
+
+- If the information is simple, add to `mode-line-misc-info` or `global-mode-string`.
+- Use `doom-modeline-add-segment` to add a segment to modelines:
+
+```emacs-lisp
+;; Exclude certain modelines from automatic modification
+(setq doom-modeline-excluded-modelines '(speedbar))
+
+;; Add segment to all modelines (after anchor segment)
+(doom-modeline-add-segment 'evil-state 'window-number)
+
+;; Add segment before anchor
+(doom-modeline-add-segment 'evil-state 'window-number :before)
+
+;; Add segment to a specific modeline only
+(doom-modeline-add-segment 'evil-state 'window-number :after 'main)
+```
+
+Function: `doom-modeline-add-segment SEGMENT ANCHOR &optional POSITION MODELINE`
+
+- `SEGMENT`: The segment name to add (a symbol)
+- `ANCHOR`: The segment name to anchor to (a symbol)
+- `POSITION`: Can be `:before` or `:after` (default: `:after`)
+- `MODELINE`: A modeline name (symbol) to add to a specific modeline, or `nil`/`'all` to add to all modelines (respecting `doom-modeline-excluded-modelines`)
+
+### Removing Segments from Modelines
+
+- Use `doom-modeline-remove-segment` to remove a segment from modelines:
+
+```emacs-lisp
+;; Remove segment from all modelines
+(doom-modeline-remove-segment 'evil-state)
+
+;; Remove segment from a specific modeline only
+(doom-modeline-remove-segment 'evil-state 'main)
+```
+
+Function: `doom-modeline-remove-segment SEGMENT &optional MODELINE`
+
+- `SEGMENT`: The segment name to remove (a symbol)
+- `MODELINE`: A modeline name (symbol) to remove from a specific modeline, or `nil`/`'all` to remove from all modelines (respecting `doom-modeline-excluded-modelines`)
 
 ## FAQ
 
@@ -482,36 +579,6 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
        up-to-date](https://magit.vc/manual/magit/The-mode_002dline-information-isn_0027t-always-up_002dto_002ddate.html)
      - [Maybe provide an alternative to VC's mode-line
        information](https://github.com/magit/magit/issues/2687)
-
-1. Can I add my mode-line segments myself? How to do that?
-   How can I define my own mode-line?
-
-   There are two methods.
-
-   - If the information is simple, just add to `mode-line-misc-info` or `global-mode-string`.
-
-   - Use `doom-modeline-def-modeline` to define your own mode-line and set it as
-     default.
-
-     For example:
-
-     ```emacs-lisp
-     ;; Define your custom doom-modeline
-     (doom-modeline-def-modeline 'my-simple-line
-       '(bar matches buffer-info remote-host buffer-position parrot selection-info)
-       '(misc-info minor-modes input-method buffer-encoding major-mode process vcs check))
-
-     ;; Set default mode-line
-     (add-hook 'doom-modeline-mode-hook
-               (lambda ()
-                 (doom-modeline-set-modeline 'my-simple-line 'default)))
-
-     ;; Configure other mode-lines based on major modes
-     (add-to-list 'doom-modeline-mode-alist '(my-mode . my-simple-line))
-
-     ;; Or disable other mode-lines
-     (setq 'doom-modeline-mode-alist nil)
-     ```
 
 1. How to specify font family and size in modeline?
 
@@ -603,7 +670,7 @@ Run `M-x customize-group RET doom-modeline RET` or set the variables.
 
    It respects `visual-replace-display-total`, so you should use `(setq visual-replace-display-total t)` to display.
 
-1. Why am I unable to get the GitHub notifications even thogh I enable `doom-modeline-github`?
+1. Why am I unable to get the GitHub notifications even though I enable `doom-modeline-github`?
 
    The functionality requires the `async` and `ghub` packages, and make sure the token has
    permission to access the Github repositories.
